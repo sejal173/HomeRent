@@ -187,6 +187,10 @@ export default function PropertyDetailPage() {
           <img
             src={property.images?.[activeImageIndex] || property.images?.[0]}
             alt={property.title}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80';
+            }}
             className="w-full h-full object-cover"
           />
         </div>
@@ -203,7 +207,15 @@ export default function PropertyDetailPage() {
                   : 'border-transparent opacity-75 hover:opacity-100'
               }`}
             >
-              <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
+              <img
+                src={img}
+                alt={`View ${idx + 1}`}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80';
+                }}
+                className="w-full h-full object-cover"
+              />
             </button>
           ))}
         </div>
