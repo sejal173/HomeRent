@@ -67,7 +67,7 @@ export default function Navbar() {
                 isActive('/dashboard') ? 'text-blue-600 bg-blue-50/70 font-semibold' : 'text-slate-700 hover:text-blue-600 hover:bg-slate-50'
               }`}
             >
-              Dashboard & Stats
+              Dashboard
             </Link>
             {isAuthenticated && (
               <Link
@@ -221,7 +221,7 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded-lg text-base font-medium text-slate-800 hover:bg-slate-50"
           >
-            Dashboard & Analytics
+            Dashboard
           </Link>
           <Link
             to="/my-listings"

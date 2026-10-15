@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Heart, MapPin, Bed, Bath, Sparkles, ShieldCheck, CheckCircle2, 
-  Share2, Phone, Mail, Calendar, ArrowLeft, Send, CheckCircle, Wifi, 
-  Car, Shield, Award, Dumbbell, Waves
+  Share2, Phone, Mail, ArrowLeft, Send, CheckCircle, Award
 } from 'lucide-react';
 import { PropertyService } from '../services/api';
 import { useSaved } from '../context/SavedContext';
@@ -18,11 +17,9 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Inquiry form states
+  // Inquiry form states: only Name, Phone, and Message
   const [inquiryName, setInquiryName] = useState('');
-  const [inquiryEmail, setInquiryEmail] = useState('');
   const [inquiryPhone, setInquiryPhone] = useState('');
-  const [moveInDate, setMoveInDate] = useState('');
   const [inquiryMessage, setInquiryMessage] = useState('Hello, I am interested in this rental property and would like to arrange a site visit.');
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -62,10 +59,8 @@ export default function PropertyDetailPage() {
     setTimeout(() => {
       setInquirySubmitted(false);
       setInquiryName('');
-      setInquiryEmail('');
       setInquiryPhone('');
-      setMoveInDate('');
-    }, 5000);
+    }, 4000);
   };
 
   const handleCopyLink = () => {
@@ -358,20 +353,6 @@ export default function PropertyDetailPage() {
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Your Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@example.com"
-                    value={inquiryEmail}
-                    onChange={(e) => setInquiryEmail(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Phone Number
                   </label>
                   <input
@@ -380,18 +361,6 @@ export default function PropertyDetailPage() {
                     placeholder="+91 98765 00000"
                     value={inquiryPhone}
                     onChange={(e) => setInquiryPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Preferred Move-in Date
-                  </label>
-                  <input
-                    type="date"
-                    value={moveInDate}
-                    onChange={(e) => setMoveInDate(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>

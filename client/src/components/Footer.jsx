@@ -38,7 +38,7 @@ export default function Footer() {
                 <Link to="/properties" className="hover:text-blue-400 transition-colors">Browse Properties</Link>
               </li>
               <li>
-                <Link to="/dashboard" className="hover:text-blue-400 transition-colors">Analytics & Stats</Link>
+                <Link to="/dashboard" className="hover:text-blue-400 transition-colors">Dashboard</Link>
               </li>
               <li>
                 <Link to="/add-property" className="hover:text-blue-400 transition-colors">Post Property Listing</Link>
