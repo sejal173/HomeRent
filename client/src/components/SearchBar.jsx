@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, Building, IndianRupee, ArrowRight } from 'lucide-react';
+import { Search, MapPin, Building, IndianRupee } from 'lucide-react';
 
 export default function SearchBar({ initialCity = '', initialType = '', initialBudget = '', className = '' }) {
   const [city, setCity] = useState(initialCity);

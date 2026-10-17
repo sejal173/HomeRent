@@ -1,11 +1,13 @@
+// client/src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SavedProvider } from './context/SavedContext';
 
 // Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -47,15 +49,49 @@ export default function App() {
             <Navbar />
             <div className="flex-1">
               <Routes>
+                {/* Public Routes */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/properties" element={<PropertiesPage />} />
                 <Route path="/properties/:id" element={<PropertyDetailPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/my-listings" element={<MyPropertiesPage />} />
-                <Route path="/add-property" element={<AddEditPropertyPage />} />
-                <Route path="/edit-property/:id" element={<AddEditPropertyPage />} />
+
+                {/* Protected Routes (Logged-in users) */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-listings"
+                  element={
+                    <ProtectedRoute>
+                      <MyPropertiesPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Landlord-Only Routes */}
+                <Route
+                  path="/add-property"
+                  element={
+                    <ProtectedRoute landlordOnly={true}>
+                      <AddEditPropertyPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/edit-property/:id"
+                  element={
+                    <ProtectedRoute landlordOnly={true}>
+                      <AddEditPropertyPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>

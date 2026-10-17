@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Home, Heart, PlusCircle, User, LogOut, Menu, X, Building2, Sparkles, LayoutDashboard } from 'lucide-react';
+import { Home, Heart, PlusCircle, LogOut, Menu, X, Building2, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSaved } from '../context/SavedContext';
 

@@ -30,6 +30,7 @@ export default function PropertiesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   // Sync budget shortcut from hero search bar if passed
@@ -54,6 +55,7 @@ export default function PropertiesPage() {
   useEffect(() => {
     const fetchListings = async () => {
       setLoading(true);
+      setError('');
       try {
         const queryParams = {
           search: searchQuery,
@@ -65,17 +67,17 @@ export default function PropertiesPage() {
           furnishing: selectedFurnishing,
           sortBy,
           page: currentPage,
-          limit: 9
+          limit: 9,
         };
 
         const res = await PropertyService.getAll(queryParams);
         if (res.success) {
           setProperties(res.properties);
           setTotalCount(res.total);
-          setTotalPages(res.totalPages);
+          setTotalPages(res.totalPages || res.pages || 1);
         }
-      } catch (err) {
-        console.error('Failed to fetch properties:', err);
+      } catch {
+        setError('Failed to load rental properties. Please check your connection and try again.');
       } finally {
         setLoading(false);
       }
@@ -414,6 +416,13 @@ export default function PropertiesPage() {
                   </button>
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Error Alert */}
+          {error && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+              {error}
             </div>
           )}
 

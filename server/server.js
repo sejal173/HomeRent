@@ -32,9 +32,10 @@ connectDB();
 const app = express();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
-// cors: Allows our React frontend (running on port 5173) to call this API
+// cors: Allows our React frontend to call this API (origin from env with safe default)
+const clientOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: clientOrigin,
   credentials: true,
 }));
 

@@ -1,33 +1,32 @@
+// client/src/pages/AddEditPropertyPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Check } from 'lucide-react';
 import { PropertyService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 const CITIES = ['Bengaluru', 'Mumbai', 'Delhi NCR', 'Pune', 'Hyderabad', 'Chennai'];
-const TYPES = ['Apartment', 'Villa', 'Independent House', 'Studio', 'Penthouse'];
+const TYPES = ['Apartment', 'Villa', 'House', 'Studio', 'PG'];
 const FURNISHING_OPTIONS = ['Furnished', 'Semi-Furnished', 'Unfurnished'];
 
 const AVAILABLE_AMENITIES = [
-  'High-Speed WiFi',
-  'Gym & Fitness',
-  'Swimming Pool',
-  '24/7 Security',
-  'Covered Parking',
+  'Parking',
+  'Gym',
+  'Pool',
+  'Security',
   'Power Backup',
-  'Balcony View',
-  'Clubhouse',
-  'Pet Friendly',
+  'Lift',
+  'Garden',
+  'Club House',
+  'High-Speed WiFi',
   'Air Conditioning',
   'Modular Kitchen',
-  'Elevator Access'
+  'Pet Friendly',
 ];
 
 export default function AddEditPropertyPage() {
   const { id } = useParams();
   const isEditing = Boolean(id);
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   // Form input state
   const [formData, setFormData] = useState({
@@ -41,9 +40,9 @@ export default function AddEditPropertyPage() {
     bedrooms: 2,
     bathrooms: 2,
     furnishingStatus: 'Furnished',
-    amenities: ['High-Speed WiFi', '24/7 Security', 'Covered Parking'],
-    images: ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80'],
-    availabilityStatus: 'Available'
+    amenities: ['Parking', 'Security', 'Power Backup'],
+    images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
+    availabilityStatus: 'Available',
   });
 
   const [imageUrlInput, setImageUrlInput] = useState('');
@@ -58,10 +57,25 @@ export default function AddEditPropertyPage() {
         try {
           const res = await PropertyService.getById(id);
           if (res.success && res.property) {
-            setFormData(res.property);
+            const p = res.property;
+            setFormData({
+              title: p.title || '',
+              description: p.description || '',
+              city: p.city || 'Bengaluru',
+              area: p.locality || p.area || '',
+              address: p.address || '',
+              monthlyRent: p.price ?? p.monthlyRent ?? '',
+              propertyType: p.type || p.propertyType || 'Apartment',
+              bedrooms: p.bedrooms || 2,
+              bathrooms: p.bathrooms || 2,
+              furnishingStatus: p.furnished || p.furnishingStatus || 'Furnished',
+              amenities: p.amenities || [],
+              images: p.images?.length ? p.images : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
+              availabilityStatus: p.available !== false ? 'Available' : 'Rented',
+            });
           }
         } catch (err) {
-          console.error('Failed to load property for editing:', err);
+          setError(err.response?.data?.message || 'Failed to load property for editing.');
         }
       };
       fetchProperty();
@@ -70,20 +84,20 @@ export default function AddEditPropertyPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: name === 'monthlyRent' || name === 'bedrooms' || name === 'bathrooms' ? Number(value) : value
+      [name]: name === 'monthlyRent' || name === 'bedrooms' || name === 'bathrooms' ? Number(value) : value,
     }));
   };
 
   const handleAmenityToggle = (amenity) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const exists = prev.amenities.includes(amenity);
       return {
         ...prev,
         amenities: exists
-          ? prev.amenities.filter(a => a !== amenity)
-          : [...prev.amenities, amenity]
+          ? prev.amenities.filter((a) => a !== amenity)
+          : [...prev.amenities, amenity],
       };
     });
   };
@@ -91,17 +105,17 @@ export default function AddEditPropertyPage() {
   const handleAddImage = (e) => {
     e.preventDefault();
     if (!imageUrlInput.trim()) return;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, imageUrlInput.trim()]
+      images: [...prev.images, imageUrlInput.trim()],
     }));
     setImageUrlInput('');
   };
 
   const handleRemoveImage = (indexToRemove) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: prev.images.filter((_, idx) => idx !== indexToRemove)
+      images: prev.images.filter((_, idx) => idx !== indexToRemove),
     }));
   };
 
@@ -110,7 +124,6 @@ export default function AddEditPropertyPage() {
     e.preventDefault();
     setError('');
 
-    // Validation checks
     if (!formData.title.trim()) {
       setError('Please provide a property title.');
       return;
@@ -120,7 +133,7 @@ export default function AddEditPropertyPage() {
       return;
     }
     if (!formData.area.trim()) {
-      setError('Please enter the area/neighborhood.');
+      setError('Please enter the area / neighborhood.');
       return;
     }
     if (!formData.monthlyRent || formData.monthlyRent <= 0) {
@@ -131,11 +144,17 @@ export default function AddEditPropertyPage() {
     setLoading(true);
     try {
       const payload = {
-        ...formData,
-        ownerId: user?.id || 'usr_demo_01',
-        ownerName: user?.name || 'Aditya Verma',
-        ownerEmail: user?.email || 'aditya@example.com',
-        ownerPhone: '+91 98765 43210'
+        title: formData.title.trim(),
+        description: formData.description.trim() || `Beautiful ${formData.propertyType} in ${formData.area}, ${formData.city}.`,
+        type: formData.propertyType,
+        price: Number(formData.monthlyRent),
+        city: formData.city,
+        locality: formData.area.trim(),
+        bedrooms: Number(formData.bedrooms),
+        bathrooms: Number(formData.bathrooms),
+        furnished: formData.furnishingStatus,
+        amenities: formData.amenities,
+        images: formData.images.length > 0 ? formData.images : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
       };
 
       if (isEditing) {
@@ -149,7 +168,7 @@ export default function AddEditPropertyPage() {
         navigate('/my-listings');
       }, 1200);
     } catch (err) {
-      setError('Failed to save property listing. Please try again.');
+      setError(err.response?.data?.message || 'Failed to save property listing. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -157,7 +176,6 @@ export default function AddEditPropertyPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      
       {/* Back button */}
       <div>
         <Link
@@ -196,9 +214,8 @@ export default function AddEditPropertyPage() {
         </div>
       )}
 
-      {/* Single-Column Form */}
+      {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-card space-y-6">
-        
         {/* Basic Info */}
         <div className="space-y-4">
           <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">
@@ -231,7 +248,7 @@ export default function AddEditPropertyPage() {
                 onChange={handleInputChange}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none"
               >
-                {TYPES.map(t => (
+                {TYPES.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -285,7 +302,7 @@ export default function AddEditPropertyPage() {
                 onChange={handleInputChange}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none"
               >
-                {CITIES.map(c => (
+                {CITIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -306,20 +323,6 @@ export default function AddEditPropertyPage() {
               />
             </div>
           </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Street Address
-            </label>
-            <input
-              type="text"
-              name="address"
-              placeholder="e.g. Flat 301, Sunshine Heights, 12th Main Road"
-              value={formData.address}
-              onChange={handleInputChange}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none"
-            />
-          </div>
         </div>
 
         {/* Configuration */}
@@ -339,7 +342,7 @@ export default function AddEditPropertyPage() {
                 onChange={handleInputChange}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none"
               >
-                {[1, 2, 3, 4, 5].map(b => (
+                {[1, 2, 3, 4, 5].map((b) => (
                   <option key={b} value={b}>{b} BHK</option>
                 ))}
               </select>
@@ -355,7 +358,7 @@ export default function AddEditPropertyPage() {
                 onChange={handleInputChange}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none"
               >
-                {[1, 2, 3, 4].map(b => (
+                {[1, 2, 3, 4].map((b) => (
                   <option key={b} value={b}>{b} Baths</option>
                 ))}
               </select>
@@ -371,7 +374,7 @@ export default function AddEditPropertyPage() {
                 onChange={handleInputChange}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none"
               >
-                {FURNISHING_OPTIONS.map(f => (
+                {FURNISHING_OPTIONS.map((f) => (
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
@@ -411,7 +414,7 @@ export default function AddEditPropertyPage() {
           </div>
         </div>
 
-        {/* Photos (Image URLs) */}
+        {/* Photos */}
         <div className="space-y-4 pt-4 border-t border-slate-100">
           <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">
             5. Photos (Image URLs)
@@ -434,7 +437,6 @@ export default function AddEditPropertyPage() {
             </button>
           </div>
 
-          {/* Thumbnails */}
           <div className="flex flex-wrap gap-3 pt-2">
             {formData.images.map((img, idx) => (
               <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 group">
@@ -467,9 +469,7 @@ export default function AddEditPropertyPage() {
             {loading ? 'Saving...' : isEditing ? 'Update Property' : 'Publish Property'}
           </button>
         </div>
-
       </form>
-
     </div>
   );
 }

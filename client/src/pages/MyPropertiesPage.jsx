@@ -1,8 +1,9 @@
+// client/src/pages/MyPropertiesPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Building2, PlusCircle, Edit3, Trash2, CheckCircle2, 
-  AlertCircle, Eye, IndianRupee, MapPin, Bed, Bath 
+  PlusCircle, Edit3, Trash2, CheckCircle2, 
+  AlertCircle, Eye 
 } from 'lucide-react';
 import { PropertyService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -10,27 +11,30 @@ import EmptyState from '../components/EmptyState';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export default function MyPropertiesPage() {
-  const { user } = useAuth();
+  const { user, isLandlord } = useAuth();
   const navigate = useNavigate();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
   const loadUserProperties = async () => {
     setLoading(true);
+    setError('');
     try {
-      const res = await PropertyService.getAll({ limit: 120 });
-      if (res.success) {
-        // Show properties owned by this user, or first few if demo user
-        const userListings = res.properties.filter(p => 
-          p.ownerId === user?.id || p.ownerEmail === user?.email || p._id.endsWith('1') || p._id.endsWith('5')
-        );
-        setProperties(userListings);
+      if (isLandlord) {
+        const res = await PropertyService.getMyListings();
+        if (res.success && Array.isArray(res.properties)) {
+          setProperties(res.properties);
+        }
+      } else {
+        // If a tenant visits, they simply have 0 properties posted
+        setProperties([]);
       }
     } catch (err) {
-      console.error('Failed to load user properties:', err);
+      setError(err.response?.data?.message || 'Failed to load your property listings.');
     } finally {
       setLoading(false);
     }
@@ -38,31 +42,37 @@ export default function MyPropertiesPage() {
 
   useEffect(() => {
     loadUserProperties();
-  }, [user]);
+  }, [user?._id, isLandlord]);
 
   const handleToggleStatus = async (prop) => {
-    const newStatus = prop.availabilityStatus === 'Available' ? 'Rented' : 'Available';
+    const currentAvailable = prop.available !== false && prop.availabilityStatus !== 'Rented';
+    const newAvailable = !currentAvailable;
+    const newStatusLabel = newAvailable ? 'Available' : 'Rented';
+
     try {
-      const res = await PropertyService.update(prop._id, { availabilityStatus: newStatus });
-      if (res.success) {
-        setProperties(prev => prev.map(p => p._id === prop._id ? { ...p, availabilityStatus: newStatus } : p));
-        showToast(`Status updated to "${newStatus}"`);
-      }
+      await PropertyService.update(prop._id, {
+        available: newAvailable,
+        availabilityStatus: newStatusLabel,
+      });
+      setProperties((prev) =>
+        prev.map((p) =>
+          p._id === prop._id ? { ...p, available: newAvailable, availabilityStatus: newStatusLabel } : p
+        )
+      );
+      showToast(`Status updated to "${newStatusLabel}"`);
     } catch (err) {
-      console.error('Failed to toggle status:', err);
+      showToast(err.response?.data?.message || 'Failed to update property status');
     }
   };
 
   const confirmDelete = async () => {
     if (!propertyToDelete) return;
     try {
-      const res = await PropertyService.delete(propertyToDelete._id);
-      if (res.success) {
-        setProperties(prev => prev.filter(p => p._id !== propertyToDelete._id));
-        showToast('Property deleted successfully.');
-      }
+      await PropertyService.delete(propertyToDelete._id);
+      setProperties((prev) => prev.filter((p) => p._id !== propertyToDelete._id));
+      showToast('Property deleted successfully.');
     } catch (err) {
-      console.error('Failed to delete property:', err);
+      showToast(err.response?.data?.message || 'Failed to delete property.');
     } finally {
       setDeleteModalOpen(false);
       setPropertyToDelete(null);
@@ -96,23 +106,36 @@ export default function MyPropertiesPage() {
           </p>
         </div>
 
-        <Link
-          to="/add-property"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm self-start sm:self-auto"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Post New Property</span>
-        </Link>
+        {isLandlord && (
+          <Link
+            to="/add-property"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors shadow-sm self-start sm:self-auto"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Post New Property</span>
+          </Link>
+        )}
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+          {error}
+        </div>
+      )}
 
       {/* LISTINGS TABLE / CARDS */}
       {loading ? (
         <LoadingSpinner text="Loading your listings..." />
       ) : properties.length === 0 ? (
         <EmptyState
-          title="No properties listed yet"
-          message="You haven't posted any rental properties yet. Click the button below to add your first listing in 2 minutes."
-          onReset={() => navigate('/add-property')}
+          title={isLandlord ? "No properties listed yet" : "Tenant Account"}
+          message={
+            isLandlord
+              ? "You haven't posted any rental properties yet. Click the button below to add your first listing in 2 minutes."
+              : "You are currently signed in as a tenant. If you are a landlord, sign in with your landlord account to post and manage properties."
+          }
+          onReset={isLandlord ? () => navigate('/add-property') : undefined}
         />
       ) : (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-card overflow-hidden">
@@ -129,103 +152,109 @@ export default function MyPropertiesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {properties.map((prop) => (
-                  <tr key={prop._id} className="hover:bg-slate-50/70 transition-colors">
-                    
-                    {/* Property info & Thumbnail */}
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={prop.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=400&q=80'}
-                          alt={prop.title}
-                          className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200"
-                        />
-                        <div>
+                {properties.map((prop) => {
+                  const rent = prop.price ?? prop.monthlyRent ?? 0;
+                  const locality = prop.locality || prop.area || '';
+                  const propType = prop.type || prop.propertyType || 'Apartment';
+                  const furnishing = prop.furnished || prop.furnishingStatus || 'Unfurnished';
+                  const isAvailable = prop.available !== false && prop.availabilityStatus !== 'Rented';
+
+                  return (
+                    <tr key={prop._id} className="hover:bg-slate-50/70 transition-colors">
+                      {/* Property info & Thumbnail */}
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={prop.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400'}
+                            alt={prop.title}
+                            className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200"
+                          />
+                          <div>
+                            <Link
+                              to={`/properties/${prop._id}`}
+                              className="font-bold text-slate-900 hover:text-blue-600 transition-colors line-clamp-1 max-w-xs"
+                            >
+                              {prop.title}
+                            </Link>
+                            <span className="text-xs text-slate-400 block mt-0.5">
+                              {propType} • Added {prop.createdAt ? new Date(prop.createdAt).toLocaleDateString() : 'Recently'}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Location */}
+                      <td className="py-4 px-6">
+                        <div className="text-xs text-slate-700">
+                          <span className="font-semibold block">{locality || prop.city}</span>
+                          <span className="text-slate-400">{prop.city}</span>
+                        </div>
+                      </td>
+
+                      {/* Monthly Rent */}
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-slate-900 text-sm">
+                          ₹{rent.toLocaleString('en-IN')}
+                          <span className="text-[11px] text-slate-400 font-normal"> / mo</span>
+                        </div>
+                      </td>
+
+                      {/* Configuration */}
+                      <td className="py-4 px-6">
+                        <div className="text-xs text-slate-600 space-y-0.5">
+                          <div>{prop.bedrooms || 1} Beds, {prop.bathrooms || 1} Baths</div>
+                          <div className="text-slate-400">{furnishing}</div>
+                        </div>
+                      </td>
+
+                      {/* Status Toggle */}
+                      <td className="py-4 px-6">
+                        <button
+                          onClick={() => handleToggleStatus(prop)}
+                          title="Click to toggle status"
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                            isAvailable
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          <span>{isAvailable ? 'Available' : 'Rented'}</span>
+                        </button>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <Link
                             to={`/properties/${prop._id}`}
-                            className="font-bold text-slate-900 hover:text-blue-600 transition-colors line-clamp-1 max-w-xs"
+                            title="View public listing"
+                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
-                            {prop.title}
+                            <Eye className="w-4 h-4" />
                           </Link>
-                          <span className="text-xs text-slate-400 block mt-0.5">
-                            {prop.propertyType} • Added {new Date(prop.createdAt).toLocaleDateString()}
-                          </span>
+                          <Link
+                            to={`/edit-property/${prop._id}`}
+                            title="Edit listing details"
+                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setPropertyToDelete(prop);
+                              setDeleteModalOpen(true);
+                            }}
+                            title="Delete listing"
+                            className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-
-                    {/* Location */}
-                    <td className="py-4 px-6">
-                      <div className="text-xs text-slate-700">
-                        <span className="font-semibold block">{prop.area}</span>
-                        <span className="text-slate-400">{prop.city}</span>
-                      </div>
-                    </td>
-
-                    {/* Monthly Rent */}
-                    <td className="py-4 px-6">
-                      <div className="font-bold text-slate-900 text-sm">
-                        ₹{prop.monthlyRent.toLocaleString('en-IN')}
-                        <span className="text-[11px] text-slate-400 font-normal"> / mo</span>
-                      </div>
-                    </td>
-
-                    {/* Configuration */}
-                    <td className="py-4 px-6">
-                      <div className="text-xs text-slate-600 space-y-0.5">
-                        <div>{prop.bedrooms} Beds, {prop.bathrooms} Baths</div>
-                        <div className="text-slate-400">{prop.furnishingStatus}</div>
-                      </div>
-                    </td>
-
-                    {/* Status Toggle */}
-                    <td className="py-4 px-6">
-                      <button
-                        onClick={() => handleToggleStatus(prop)}
-                        title="Click to toggle status"
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                          prop.availabilityStatus === 'Available'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
-                        }`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${prop.availabilityStatus === 'Available' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        <span>{prop.availabilityStatus}</span>
-                      </button>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link
-                          to={`/properties/${prop._id}`}
-                          title="View public listing"
-                          className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        <Link
-                          to={`/edit-property/${prop._id}`}
-                          title="Edit listing details"
-                          className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </Link>
-                        <button
-                          onClick={() => {
-                            setPropertyToDelete(prop);
-                            setDeleteModalOpen(true);
-                          }}
-                          title="Delete listing"
-                          className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

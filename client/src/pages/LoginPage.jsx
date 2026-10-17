@@ -1,6 +1,7 @@
+// client/src/pages/LoginPage.jsx
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Home, Mail, Lock, LogIn, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Home, Mail, Lock, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
@@ -10,8 +11,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = (e) => {
+  // Redirect destination after successful login
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -21,20 +26,13 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      login(email, password);
+    try {
+      await login(email, password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 400);
-  };
-
-  const handleDemoFill = (role = 'tenant') => {
-    if (role === 'owner') {
-      setEmail('vikram.malhotra@testrent.com');
-      setPassword('password123');
-    } else {
-      setEmail('rahul.renter@testrent.com');
-      setPassword('password123');
     }
   };
 
@@ -55,37 +53,13 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo Credentials Quick-Fill helper */}
-        <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-100 text-xs text-slate-700">
-          <div className="font-bold text-blue-900 mb-1 flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-blue-600" />
-            <span>Quick-Fill Demo Credentials:</span>
-          </div>
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => handleDemoFill('tenant')}
-              className="flex-1 py-1 px-2 rounded-lg bg-white border border-blue-200 text-blue-700 font-medium hover:bg-blue-50 transition-colors"
-            >
-              As Tenant
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoFill('owner')}
-              className="flex-1 py-1 px-2 rounded-lg bg-white border border-blue-200 text-blue-700 font-medium hover:bg-blue-50 transition-colors"
-            >
-              As Landlord
-            </button>
-          </div>
-        </div>
-
         {error && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
             {error}
           </div>
         )}
 
-        {/* Form */}
+        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -119,16 +93,6 @@ export default function LoginPage() {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
-          </div>
-
-          <div className="flex items-center justify-between text-xs pt-1">
-            <label className="flex items-center gap-2 cursor-pointer text-slate-600 font-medium">
-              <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
-              <span>Remember me</span>
-            </label>
-            <a href="#forgot" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
-              Forgot password?
-            </a>
           </div>
 
           <button

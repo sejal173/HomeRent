@@ -1,3 +1,4 @@
+// client/src/pages/PropertyDetailPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -15,6 +16,7 @@ export default function PropertyDetailPage() {
   const [property, setProperty] = useState(null);
   const [similarProperties, setSimilarProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Inquiry form states: only Name, Phone, and Message
@@ -27,6 +29,7 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     const fetchDetail = async () => {
       setLoading(true);
+      setError('');
       try {
         const res = await PropertyService.getById(id);
         if (res.success && res.property) {
@@ -34,16 +37,22 @@ export default function PropertyDetailPage() {
           setActiveImageIndex(0);
 
           // Fetch similar listings in same city
-          const simRes = await PropertyService.getAll({
-            city: res.property.city,
-            limit: 3
-          });
-          if (simRes.success) {
-            setSimilarProperties(simRes.properties.filter(p => p._id !== res.property._id).slice(0, 3));
+          try {
+            const simRes = await PropertyService.getAll({
+              city: res.property.city,
+              limit: 4,
+            });
+            if (simRes.success && Array.isArray(simRes.properties)) {
+              setSimilarProperties(simRes.properties.filter((p) => p._id !== res.property._id).slice(0, 3));
+            }
+          } catch {
+            // Non-critical if similar listings fail
           }
+        } else {
+          setError('Property not found');
         }
       } catch (err) {
-        console.error('Failed to load property details:', err);
+        setError(err.response?.data?.message || 'Failed to load property details.');
       } finally {
         setLoading(false);
       }
@@ -73,10 +82,10 @@ export default function PropertyDetailPage() {
     return <LoadingSpinner text="Loading property details..." />;
   }
 
-  if (!property) {
+  if (error || !property) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h2 className="text-2xl font-bold text-slate-800">Property not found</h2>
+        <h2 className="text-2xl font-bold text-slate-800">{error || 'Property not found'}</h2>
         <Link to="/properties" className="mt-4 inline-block text-blue-600 font-semibold">
           &larr; Back to Listings
         </Link>
@@ -85,17 +94,26 @@ export default function PropertyDetailPage() {
   }
 
   const saved = isSaved(property._id);
+  const rent = property.price ?? property.monthlyRent ?? 0;
+  const propertyType = property.type || property.propertyType || 'Apartment';
+  const locality = property.locality || property.area || property.address || '';
+  const furnishing = property.furnished || property.furnishingStatus || 'Unfurnished';
+  const isAvailable = property.available !== false && property.availabilityStatus !== 'Rented';
+  const ownerName = property.owner?.name || property.ownerName || 'Verified Landlord';
+  const ownerEmail = property.owner?.email || property.ownerEmail || 'contact@homerent.dev';
+  const ownerPhone = property.owner?.phone || property.ownerPhone || '+91 98765 43210';
+
   const formattedRent = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(property.monthlyRent);
+    maximumFractionDigits: 0,
+  }).format(rent);
 
   const securityDeposit = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(property.monthlyRent * 2);
+    maximumFractionDigits: 0,
+  }).format(rent * 2);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -138,16 +156,16 @@ export default function PropertyDetailPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-              {property.propertyType}
+              {propertyType}
             </span>
             <span
               className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${
-                property.availabilityStatus === 'Available'
+                isAvailable
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
-              ● {property.availabilityStatus}
+              ● {isAvailable ? 'Available' : 'Rented'}
             </span>
             {property.isFeatured && (
               <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
@@ -160,7 +178,7 @@ export default function PropertyDetailPage() {
           </h1>
           <p className="flex items-center gap-1.5 text-sm text-slate-500 mt-2">
             <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
-            <span>{property.address || `${property.area}, ${property.city}`}</span>
+            <span>{property.address || `${locality}, ${property.city}`}</span>
           </p>
         </div>
 
@@ -180,11 +198,11 @@ export default function PropertyDetailPage() {
         {/* Main Photo */}
         <div className="lg:col-span-2 aspect-[16/10] rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 shadow-card relative">
           <img
-            src={property.images?.[activeImageIndex] || property.images?.[0]}
+            src={property.images?.[activeImageIndex] || property.images?.[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'}
             alt={property.title}
             onError={(e) => {
               e.currentTarget.onerror = null;
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80';
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800';
             }}
             className="w-full h-full object-cover"
           />
@@ -207,7 +225,7 @@ export default function PropertyDetailPage() {
                 alt={`View ${idx + 1}`}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80';
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800';
                 }}
                 className="w-full h-full object-cover"
               />
@@ -227,22 +245,22 @@ export default function PropertyDetailPage() {
             <div className="p-3 rounded-xl bg-slate-50">
               <Bed className="w-5 h-5 text-blue-600 mx-auto mb-1.5" />
               <div className="text-xs text-slate-500">Bedrooms</div>
-              <div className="text-sm font-bold text-slate-900">{property.bedrooms} BHK</div>
+              <div className="text-sm font-bold text-slate-900">{property.bedrooms || 1} Beds</div>
             </div>
             <div className="p-3 rounded-xl bg-slate-50">
               <Bath className="w-5 h-5 text-blue-600 mx-auto mb-1.5" />
               <div className="text-xs text-slate-500">Bathrooms</div>
-              <div className="text-sm font-bold text-slate-900">{property.bathrooms} Baths</div>
+              <div className="text-sm font-bold text-slate-900">{property.bathrooms || 1} Baths</div>
             </div>
             <div className="p-3 rounded-xl bg-slate-50">
               <Sparkles className="w-5 h-5 text-blue-600 mx-auto mb-1.5" />
               <div className="text-xs text-slate-500">Furnishing</div>
-              <div className="text-sm font-bold text-slate-900 truncate">{property.furnishingStatus}</div>
+              <div className="text-sm font-bold text-slate-900 truncate">{furnishing}</div>
             </div>
             <div className="p-3 rounded-xl bg-slate-50">
               <ShieldCheck className="w-5 h-5 text-blue-600 mx-auto mb-1.5" />
               <div className="text-xs text-slate-500">Listed By</div>
-              <div className="text-sm font-bold text-slate-900 truncate">{property.ownerName || 'Verified Owner'}</div>
+              <div className="text-sm font-bold text-slate-900 truncate">{ownerName}</div>
             </div>
           </div>
 
@@ -280,8 +298,8 @@ export default function PropertyDetailPage() {
             <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 flex items-start gap-3">
               <MapPin className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <div className="text-xs text-slate-700 leading-relaxed">
-                <span className="font-bold text-slate-900 block text-sm mb-1">{property.area}, {property.city}</span>
-                Situated in prime residential locality with seamless connectivity to tech corridors, metro stations, grocery supermarkets, and educational institutions.
+                <span className="font-bold text-slate-900 block text-sm mb-1">{locality ? `${locality}, ` : ''}{property.city}</span>
+                Prime residential location with easy access to transit, shopping centres, and daily conveniences.
               </div>
             </div>
           </div>
@@ -295,25 +313,25 @@ export default function PropertyDetailPage() {
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-card space-y-5">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white font-bold text-lg flex items-center justify-center uppercase shadow-md shadow-blue-500/20">
-                {(property.ownerName || 'V').charAt(0)}
+                {ownerName.charAt(0)}
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-slate-900 text-base">{property.ownerName || 'Landlord'}</h3>
+                  <h3 className="font-bold text-slate-900 text-base">{ownerName}</h3>
                   <Award className="w-4 h-4 text-blue-600" />
                 </div>
-                <p className="text-xs text-slate-500">Verified Property Owner</p>
+                <p className="text-xs text-slate-500">Verified Landlord</p>
               </div>
             </div>
 
             <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                <span className="truncate">{property.ownerEmail || 'owner@testrent.com'}</span>
+                <span className="truncate">{ownerEmail}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>{property.ownerPhone || '+91 98765 43210'}</span>
+                <span>{ownerPhone}</span>
               </div>
             </div>
           </div>
@@ -324,15 +342,15 @@ export default function PropertyDetailPage() {
               Schedule Visit / Inquiry
             </h3>
             <p className="text-xs text-slate-500 leading-normal">
-              Send your preferred move-in date and contact number directly to the owner.
+              Send your preferred move-in date and contact number directly to the landlord.
             </p>
 
             {inquirySubmitted ? (
-              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-center space-y-2 animate-in fade-in">
+              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-center space-y-2">
                 <CheckCircle className="w-8 h-8 text-emerald-600 mx-auto" />
                 <h4 className="font-bold text-sm">Inquiry Sent Successfully!</h4>
                 <p className="text-xs text-emerald-700">
-                  The property owner has received your contact details and will call or message you shortly.
+                  The landlord has received your inquiry and will reach out to your phone number soon.
                 </p>
               </div>
             ) : (
@@ -344,7 +362,7 @@ export default function PropertyDetailPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Rahul Sharma"
+                    placeholder="e.g. Sneha Sharma"
                     value={inquiryName}
                     onChange={(e) => setInquiryName(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"

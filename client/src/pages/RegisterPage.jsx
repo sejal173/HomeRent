@@ -1,3 +1,4 @@
+// client/src/pages/RegisterPage.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, User, Mail, Lock, UserPlus, ShieldCheck } from 'lucide-react';
@@ -8,13 +9,14 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('Tenant');
+  const [role, setRole] = useState('tenant');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -34,11 +36,20 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      register({ name, email, password, role });
-      setLoading(false);
+    try {
+      await register({
+        name,
+        email,
+        password,
+        role,
+        phone,
+      });
       navigate('/dashboard');
-    }, 400);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,7 +70,7 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
             {error}
           </div>
         )}
@@ -72,9 +83,9 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
-              onClick={() => setRole('Tenant')}
+              onClick={() => setRole('tenant')}
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                role === 'Tenant'
+                role === 'tenant'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -83,9 +94,9 @@ export default function RegisterPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRole('Owner')}
+              onClick={() => setRole('landlord')}
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                role === 'Owner'
+                role === 'landlord'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -133,6 +144,19 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              placeholder="+91 98765 43210"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -167,7 +191,7 @@ export default function RegisterPage() {
 
           <div className="flex items-center gap-2 text-xs text-slate-500 pt-1">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Passwords are hashed securely with bcrypt on server.</span>
+            <span>Secure registration with encrypted credentials.</span>
           </div>
 
           <button

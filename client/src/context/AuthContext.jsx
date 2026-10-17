@@ -1,28 +1,26 @@
+// client/src/context/AuthContext.jsx
+// Manages authentication state (user info, token, login, register, logout) across the app.
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AuthService } from '../services/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Pre-seed a demo user for smooth interview demonstration if none exists
+  // Read saved user from localStorage (null if not logged in)
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('homerent_user');
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {
+      } catch {
         return null;
       }
     }
-    // Default demo user so the reviewer can immediately test authenticated features
-    return {
-      id: 'usr_demo_01',
-      name: 'Aditya Verma',
-      email: 'aditya@example.com',
-      role: 'Owner', // 'Tenant' | 'Owner'
-      token: 'demo-jwt-token-12345'
-    };
+    return null;
   });
 
+  // Sync user state with localStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem('homerent_user', JSON.stringify(user));
@@ -31,37 +29,38 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  const login = (email, password) => {
-    // Client-side simulation that pairs with backend API
-    const simulatedUser = {
-      id: 'usr_' + Date.now().toString(36),
-      name: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      email,
-      role: email.includes('owner') ? 'Owner' : 'Tenant',
-      token: 'jwt-auth-token-' + Math.random().toString(36).substring(2)
-    };
-    setUser(simulatedUser);
-    return simulatedUser;
+  // Real login: calls backend POST /api/auth/login and stores returned JWT
+  const login = async (email, password) => {
+    const data = await AuthService.login({ email, password });
+    setUser(data);
+    return data;
   };
 
-  const register = (userData) => {
-    const newUser = {
-      id: 'usr_' + Date.now().toString(36),
-      name: userData.name,
-      email: userData.email,
-      role: userData.role || 'Tenant',
-      token: 'jwt-auth-token-' + Math.random().toString(36).substring(2)
-    };
-    setUser(newUser);
-    return newUser;
+  // Real registration: calls backend POST /api/auth/register and logs in
+  const register = async (userData) => {
+    const data = await AuthService.register(userData);
+    setUser(data);
+    return data;
   };
 
+  // Logout: clears session
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('homerent_user');
+    localStorage.removeItem('homerent_saved_properties');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        isAuthenticated: !!user,
+        isLandlord: user?.role?.toLowerCase() === 'landlord',
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -8,16 +8,18 @@ import { PropertyService } from '../services/api';
 export default function HomePage() {
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Fetch featured properties on page load
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
         setLoading(true);
-        const data = await PropertyService.getAll({ limit: 6, sortBy: 'rating' });
+        setError('');
+        const data = await PropertyService.getAll({ limit: 6, sort: 'newest' });
         setFeaturedProperties(data.properties || []);
-      } catch (err) {
-        console.error('Error fetching featured properties:', err);
+      } catch {
+        setError('Failed to load featured properties.');
       } finally {
         setLoading(false);
       }
@@ -104,6 +106,12 @@ export default function HomePage() {
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
+
+        {error && (
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 mb-6">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
