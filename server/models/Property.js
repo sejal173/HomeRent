@@ -88,7 +88,8 @@ propertySchema.index({ city: 1, price: 1, bedrooms: 1 });
 propertySchema.index({ owner: 1 });
 
 // 5. Single field indexes for standalone filters
-propertySchema.index({ city: 1 });
+// Note: We do NOT need a standalone { city: 1 } index because both compound indexes
+// above start with `city`. In MongoDB, the compound index already serves single-field city queries.
 propertySchema.index({ price: 1 });
 propertySchema.index({ type: 1 });
 propertySchema.index({ bedrooms: 1 });
