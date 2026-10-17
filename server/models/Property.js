@@ -73,11 +73,21 @@ const propertySchema = new mongoose.Schema(
   }
 );
 
-// TEXT INDEX for fast full-text search on title, description, city, locality
-// We will measure performance before and after adding this index
-propertySchema.index({ title: 'text', description: 'text', city: 'text', locality: 'text' });
+// ── Indexes for Optimized Query Performance ─────────────────────────────────
 
-// Regular indexes for fast filtering queries
+// 1. Full-Text Search: speeds up search by keywords across title, description, area/locality, and city
+propertySchema.index({ title: 'text', description: 'text', locality: 'text', city: 'text' });
+
+// 2. Compound Index (city + propertyType + rent): optimizes standard rental search filters
+propertySchema.index({ city: 1, type: 1, price: 1 });
+
+// 3. Compound Index (city + rent + bedrooms): optimizes budget and bedroom searches in a city
+propertySchema.index({ city: 1, price: 1, bedrooms: 1 });
+
+// 4. Foreign Key Index (owner): speeds up landlord lookups on "my listings" (/api/properties/my-listings)
+propertySchema.index({ owner: 1 });
+
+// 5. Single field indexes for standalone filters
 propertySchema.index({ city: 1 });
 propertySchema.index({ price: 1 });
 propertySchema.index({ type: 1 });
