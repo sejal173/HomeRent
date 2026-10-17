@@ -47,10 +47,9 @@ const userSchema = new mongoose.Schema(
 );
 
 // Before saving, hash the password if it was changed
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();  // Skip if password not changed
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return; // Skip if password not changed
   this.password = await bcrypt.hash(this.password, 10); // 10 = salt rounds
-  next();
 });
 
 // Method to compare entered password with hashed password in DB
