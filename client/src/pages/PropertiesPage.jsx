@@ -7,7 +7,7 @@ import EmptyState from '../components/EmptyState';
 import { PropertyService } from '../services/api';
 
 const CITIES = ['All Cities', 'Bengaluru', 'Mumbai', 'Delhi NCR', 'Pune', 'Hyderabad', 'Chennai'];
-const TYPES = ['All Types', 'Apartment', 'Villa', 'Independent House', 'Studio', 'Penthouse'];
+const TYPES = ['All Types', 'Apartment', 'Villa', 'House', 'Studio', 'PG'];
 const FURNISHING_OPTIONS = ['All', 'Furnished', 'Semi-Furnished', 'Unfurnished'];
 const BEDROOM_OPTIONS = ['Any', '1', '2', '3', '4'];
 
@@ -76,7 +76,9 @@ export default function PropertiesPage() {
           setTotalCount(res.total);
           setTotalPages(res.totalPages || res.pages || 1);
         }
-      } catch {
+      } catch (err) {
+        const msg = err.response?.data?.message || err.message || 'Network error';
+        console.error('[PropertiesPage] Fetch failed:', err.response?.status, msg);
         setError('Failed to load rental properties. Please check your connection and try again.');
       } finally {
         setLoading(false);

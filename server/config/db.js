@@ -21,40 +21,46 @@ const connectDB = async () => {
   }
 
   // ── Safe host-only debug log (never prints username or password) ──────────
+  const uri = process.env.MONGO_URI;
+  const isAtlas = uri.startsWith('mongodb+srv');
+  let host = 'unknown';
   try {
-    const url = new URL(process.env.MONGO_URI);
-    const host = url.hostname; // e.g. "cluster0.kigyov5.mongodb.net"
+    // For Atlas: mongodb+srv://user:pass@cluster0.xxx.mongodb.net/db
+    // For local:  mongodb://127.0.0.1:27017/db
+    host = new URL(uri).hostname;
+  } catch {
+    // URL parse failed — still attempt connection
+  }
 
-    console.log(`🔌 Connecting to MongoDB host: ${host}`);
+  console.log(`🔌 Connecting to MongoDB host: ${host}`);
 
-    // Warning: a correct Atlas host has TWO dots and a cluster-id segment
-    // e.g. cluster0.kigyov5.mongodb.net  ← correct (3 parts)
-    //      cluster0.mongodb.net           ← incomplete placeholder (2 parts only)
+  if (isAtlas) {
+    // Atlas host should look like: cluster0.kigyov5.mongodb.net (4 parts when split by '.')
     const parts = host.split('.');
     if (parts.length < 4) {
       console.warn('⚠️  WARNING: Your MONGO_URI host looks incomplete!');
       console.warn(`   Got:      ${host}`);
       console.warn('   Expected: cluster0.<cluster-id>.mongodb.net');
-      console.warn('   → In MongoDB Atlas: click "Connect" on your cluster,');
-      console.warn('     choose "Drivers", and copy the full connection string.');
+      console.warn('   → In MongoDB Atlas: click "Connect" → Drivers → copy the full string.');
     }
-  } catch {
-    console.error('❌ MONGO_URI format looks wrong. It must start with mongodb+srv://');
-    process.exit(1);
   }
 
   // ── Attempt the connection ────────────────────────────────────────────────
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const conn = await mongoose.connect(uri);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`❌ MongoDB connection error: ${error.message}`);
-    console.error('');
-    console.error('   Common fixes:');
-    console.error('   1. Copy the FULL connection string from Atlas → Connect → Drivers');
-    console.error('      It should look like: mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/homerent');
-    console.error('   2. In MongoDB Atlas → Network Access → add your IP (or 0.0.0.0/0 for dev)');
-    console.error('   3. Double-check your Atlas username and password');
+    if (!isAtlas && error.code === 'ECONNREFUSED') {
+      console.error('   Local MongoDB is not running.');
+      console.error('   → Start the "MongoDB Server" service in Windows Services,');
+      console.error('     or install MongoDB Community Server.');
+    } else if (isAtlas) {
+      console.error('   Common Atlas fixes:');
+      console.error('   1. Copy the FULL connection string from Atlas → Connect → Drivers');
+      console.error('   2. Network Access → add your IP (or 0.0.0.0/0 for dev)');
+      console.error('   3. Double-check your Atlas username and password');
+    }
     process.exit(1);
   }
 };

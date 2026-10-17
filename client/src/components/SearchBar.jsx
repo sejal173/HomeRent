@@ -65,9 +65,9 @@ export default function SearchBar({ initialCity = '', initialType = '', initialB
               <option value="">All Types</option>
               <option value="Apartment">Apartment</option>
               <option value="Villa">Villa</option>
-              <option value="Independent House">Independent House</option>
+              <option value="House">House</option>
               <option value="Studio">Studio</option>
-              <option value="Penthouse">Penthouse</option>
+              <option value="PG">PG</option>
             </select>
           </div>
         </div>

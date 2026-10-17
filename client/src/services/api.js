@@ -3,8 +3,14 @@
 
 import axios from 'axios';
 
-// Read API base URL from Vite environment variable with safe localhost default
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// In development, use relative '/api' so Vite proxy routes calls to backend.
+// In production, use VITE_API_URL with safe fallback.
+const envUrl = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.DEV
+  ? '/api'
+  : (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '')
+    ? envUrl.trim().replace(/\/+$/, '')
+    : 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -29,6 +35,20 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response interceptor: logs clear error message with status, message and request URL
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status || 'No Response (Network Error / CORS)';
+    const message = error.response?.data?.message || error.message || 'Unknown error';
+    const requestUrl = error.config?.url
+      ? `${error.config.baseURL || ''}${error.config.url}`
+      : 'Unknown URL';
+    console.error(`[API Error] Status: ${status} | URL: ${requestUrl} | Message: ${message}`);
+    return Promise.reject(error);
+  }
+);
 
 // ── Property Services ────────────────────────────────────────────────────────
 export const PropertyService = {

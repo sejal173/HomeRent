@@ -18,8 +18,11 @@ export default function HomePage() {
         setError('');
         const data = await PropertyService.getAll({ limit: 6, sort: 'newest' });
         setFeaturedProperties(data.properties || []);
-      } catch {
-        setError('Failed to load featured properties.');
+      } catch (err) {
+        // Log real reason to browser console so it is easy to debug
+        const msg = err.response?.data?.message || err.message || 'Network error';
+        console.error('[HomePage] Featured properties failed:', err.response?.status, msg);
+        setError('Failed to load featured properties. Is the backend running?');
       } finally {
         setLoading(false);
       }
