@@ -71,6 +71,14 @@ export const login = async (req, res) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
 
+  // Block suspended users from logging in
+  if (user.isSuspended) {
+    return res.status(403).json({
+      message: `Your account has been suspended: ${user.suspensionReason || 'Please contact support.'}`,
+      isSuspended: true,
+    });
+  }
+
   // Return user info and token (password excluded)
   res.json({
     _id: user._id,

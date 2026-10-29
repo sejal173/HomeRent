@@ -3,15 +3,19 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Heart, MapPin, Bed, Bath, Sparkles, ShieldCheck, CheckCircle2, 
-  Share2, Phone, Mail, ArrowLeft, Send, CheckCircle, Award
+  Share2, Phone, Mail, ArrowLeft, Send, CheckCircle, Award,
+  AlertTriangle, Star, X, Loader2
 } from 'lucide-react';
 import { PropertyService } from '../services/api';
+import AdminApi from '../services/adminApi';
+import { useAuth } from '../context/AuthContext';
 import { useSaved } from '../context/SavedContext';
 import PropertyCard from '../components/PropertyCard';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export default function PropertyDetailPage() {
   const { id } = useParams();
+  const { user, isAuthenticated, isLandlord } = useAuth();
   const { isSaved, toggleSave } = useSaved();
   const [property, setProperty] = useState(null);
   const [similarProperties, setSimilarProperties] = useState([]);
@@ -19,12 +23,32 @@ export default function PropertyDetailPage() {
   const [error, setError] = useState('');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Inquiry form states: only Name, Phone, and Message
+  // Inquiry & Tour scheduling states
   const [inquiryName, setInquiryName] = useState('');
   const [inquiryPhone, setInquiryPhone] = useState('');
+  const [inquiryDate, setInquiryDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().split('T')[0];
+  });
+  const [inquiryTime, setInquiryTime] = useState('11:00 AM');
   const [inquiryMessage, setInquiryMessage] = useState('Hello, I am interested in this rental property and would like to arrange a site visit.');
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
+  const [inquiryLoading, setInquiryLoading] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Safety Reporting modal states
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState('price_discrepancy');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+
+  // Reviews states
+  const [reviews, setReviews] = useState([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -59,17 +83,109 @@ export default function PropertyDetailPage() {
     };
 
     fetchDetail();
+
+    // Fetch property reviews
+    const fetchReviews = async () => {
+      try {
+        const revs = await AdminApi.getPropertyReviews(id);
+        setReviews(Array.isArray(revs) ? revs : []);
+      } catch {
+        // Non-critical
+      }
+    };
+    fetchReviews();
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
-  const handleInquirySubmit = (e) => {
+  const handleInquirySubmit = async (e) => {
     e.preventDefault();
-    setInquirySubmitted(true);
-    setTimeout(() => {
-      setInquirySubmitted(false);
-      setInquiryName('');
-      setInquiryPhone('');
-    }, 4000);
+    if (!isAuthenticated) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
+
+    try {
+      setInquiryLoading(true);
+      await AdminApi.submitVisitRequest({
+        propertyId: id,
+        requestedDate: inquiryDate ? new Date(inquiryDate).toISOString() : new Date().toISOString(),
+        requestedTime: inquiryTime,
+        message: inquiryMessage,
+        tenantName: inquiryName || user?.name,
+        tenantPhone: inquiryPhone || user?.phone,
+      });
+
+      setInquirySubmitted(true);
+      setTimeout(() => {
+        setInquirySubmitted(false);
+      }, 5000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit visit inquiry.');
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
+
+    if (!reportDescription.trim()) {
+      alert('Please describe your safety or listing accuracy concern.');
+      return;
+    }
+
+    try {
+      setReportLoading(true);
+      await AdminApi.submitReport({
+        propertyId: id,
+        category: reportCategory,
+        description: reportDescription.trim(),
+      });
+      setReportModalOpen(false);
+      setReportDescription('');
+      setToastMessage('Report submitted successfully for administrative safety review.');
+      setTimeout(() => setToastMessage(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit report. Rate limit may apply.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
+
+    if (!reviewText.trim()) {
+      alert('Please enter your review text.');
+      return;
+    }
+
+    try {
+      setReviewSubmitting(true);
+      const newRev = await AdminApi.submitReview({
+        propertyId: id,
+        rating: reviewRating,
+        text: reviewText.trim(),
+      });
+      setReviews((prev) => [newRev, ...prev]);
+      setReviewText('');
+      setReviewRating(5);
+      setToastMessage('Thank you! Your review has been posted.');
+      setTimeout(() => setToastMessage(''), 4000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit review.');
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   const handleCopyLink = () => {
@@ -383,32 +499,255 @@ export default function PropertyDetailPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Message
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={inquiryMessage}
-                    onChange={(e) => setInquiryMessage(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Preferred Date
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={inquiryDate}
+                        onChange={(e) => setInquiryDate(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Preferred Time
+                      </label>
+                      <select
+                        value={inquiryTime}
+                        onChange={(e) => setInquiryTime(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      >
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="11:00 AM">11:00 AM</option>
+                        <option value="02:00 PM">02:00 PM</option>
+                        <option value="04:00 PM">04:00 PM</option>
+                        <option value="06:00 PM">06:00 PM</option>
+                      </select>
+                    </div>
+                  </div>
 
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Message / Special Requests
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={inquiryMessage}
+                      onChange={(e) => setInquiryMessage(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={inquiryLoading}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs tracking-wide uppercase flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] disabled:opacity-50"
+                  >
+                    {inquiryLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    <span>{isAuthenticated ? 'Schedule Site Visit' : 'Sign In to Schedule Visit'}</span>
+                  </button>
+                </form>
+              )}
+
+              {/* Report Listing Safety Button */}
+              <div className="text-center pt-2 border-t border-slate-100">
                 <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs tracking-wide uppercase flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01]"
+                  type="button"
+                  onClick={() => setReportModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Send Rental Request</span>
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Report this listing for review</span>
                 </button>
-              </form>
-            )}
+              </div>
+            </div>
+
           </div>
 
         </div>
 
+      {/* REVIEWS & RATINGS SECTION */}
+      <div className="pt-12 border-t border-slate-200 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <span>Property Reviews & Feedback</span>
+              <span className="text-sm font-normal text-slate-500">({reviews.length})</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">Verified tenant impressions and ratings</p>
+          </div>
+        </div>
+
+        {/* Tenant review form */}
+        {isAuthenticated && !isLandlord && (
+          <form onSubmit={handleReviewSubmit} className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Leave Your Review</h4>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-600 font-medium">Rating:</span>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setReviewRating(s)}
+                    className="p-1 hover:scale-110 transition-transform"
+                  >
+                    <Star
+                      className={`w-5 h-5 ${s <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <textarea
+              rows={3}
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              placeholder="Share details of your tour, neighborhood feel, or property condition..."
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={reviewSubmitting}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+              >
+                {reviewSubmitting ? 'Posting...' : 'Post Review'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Reviews list */}
+        {reviews.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {reviews.map((rev) => (
+              <div key={rev._id} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center uppercase">
+                      {rev.reviewer?.name ? rev.reviewer.name.charAt(0) : 'T'}
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">{rev.reviewer?.name || 'Tenant'}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-400">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`w-3.5 h-3.5 ${s <= rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed italic">
+                  "{rev.text}"
+                </p>
+                <span className="text-[10px] text-slate-400 block">
+                  {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString() : 'Recent review'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
+            No reviews posted for this property yet.
+          </div>
+        )}
       </div>
+
+      {/* REPORT LISTING SAFETY MODAL */}
+      {reportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Report Listing Issue</h3>
+                  <p className="text-xs text-slate-400">Safety & Accuracy Review</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setReportModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Help us maintain an accurate, high-trust marketplace. Submit this listing for review by our administrative moderation team.
+            </p>
+
+            <form onSubmit={handleReportSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Report Category
+                </label>
+                <select
+                  value={reportCategory}
+                  onChange={(e) => setReportCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                >
+                  <option value="price_discrepancy">Price Discrepancy / Hidden Charges</option>
+                  <option value="fake_photos">Inaccurate or Misleading Photos</option>
+                  <option value="wrong_contact">Incorrect Contact or Address</option>
+                  <option value="already_rented">Already Rented / Unavailable</option>
+                  <option value="scam_suspicion">Suspicious Terms / Safety Concern</option>
+                  <option value="other">Other Accuracy Concern</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Detailed Explanation
+                </label>
+                <textarea
+                  rows={3}
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  placeholder="Describe the discrepancy or concern observed..."
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setReportModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reportLoading}
+                  className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  {reportLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Submit Report</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* SIMILAR PROPERTIES CAROUSEL */}
       {similarProperties.length > 0 && (

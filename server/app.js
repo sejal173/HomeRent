@@ -9,6 +9,11 @@ import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import propertyRoutes from './routes/propertyRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import visitRoutes from './routes/visitRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
+import verificationRoutes from './routes/verificationRoutes.js';
 
 export function createApp() {
   const app = express();
@@ -53,6 +58,11 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/properties', propertyRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/visits', visitRoutes);
+  app.use('/api/reviews', reviewRoutes);
+  app.use('/api/reports', reportRoutes);
+  app.use('/api/verifications', verificationRoutes);
 
   // Health check
   app.get('/api/health', (req, res) => {

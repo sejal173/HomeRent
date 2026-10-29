@@ -26,6 +26,13 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'User belonging to this token no longer exists' });
       }
 
+      if (req.user.isSuspended) {
+        return res.status(403).json({
+          message: `Your account has been suspended: ${req.user.suspensionReason || 'Please contact support.'}`,
+          isSuspended: true,
+        });
+      }
+
       return next();
     } catch (error) {
       return res.status(401).json({ message: 'Not authorized, token failed' });

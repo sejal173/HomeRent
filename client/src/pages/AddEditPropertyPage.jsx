@@ -210,7 +210,11 @@ export default function AddEditPropertyPage() {
       {success && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span>Listing saved successfully! Redirecting to your listings...</span>
+          <span>
+            {isEditing
+              ? 'Listing updated successfully! Redirecting to your listings...'
+              : 'Submitted for admin review. Status: Pending. Redirecting to your listings...'}
+          </span>
         </div>
       )}
 

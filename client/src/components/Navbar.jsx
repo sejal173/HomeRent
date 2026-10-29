@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Home, Heart, PlusCircle, LogOut, Menu, X, Building2, LayoutDashboard } from 'lucide-react';
+import { Home, Heart, PlusCircle, LogOut, Menu, X, Building2, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSaved } from '../context/SavedContext';
 
@@ -79,6 +79,19 @@ export default function Navbar() {
                 My Listings
               </Link>
             )}
+            {isAuthenticated && user?.role === 'admin' && (
+              <Link
+                to="/admin"
+                className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                  isActive('/admin') || location.pathname.startsWith('/admin')
+                    ? 'text-blue-700 bg-blue-50 font-bold'
+                    : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50/70'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span>Admin Portal</span>
+              </Link>
+            )}
           </nav>
 
           {/* Action buttons (Right side) */}
@@ -144,6 +157,16 @@ export default function Navbar() {
                       <Building2 className="w-4 h-4 text-slate-400" />
                       My Properties
                     </Link>
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50/70 hover:bg-blue-100/70 transition-colors"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-blue-600" />
+                        Admin Portal
+                      </Link>
+                    )}
                     <div className="border-t border-slate-100 mt-1 pt-1">
                       <button
                         onClick={handleLogout}
@@ -230,6 +253,16 @@ export default function Navbar() {
           >
             My Listings
           </Link>
+          {isAuthenticated && user?.role === 'admin' && (
+            <Link
+              to="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-base font-semibold text-blue-700 bg-blue-50"
+            >
+              <ShieldCheck className="w-5 h-5 text-blue-600" />
+              <span>Admin Portal</span>
+            </Link>
+          )}
           <Link
             to="/add-property"
             onClick={() => setMobileMenuOpen(false)}

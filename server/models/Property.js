@@ -62,6 +62,39 @@ const propertySchema = new mongoose.Schema(
       type: Boolean,
       default: true,           // Is the property available to rent?
     },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected', 'removed'],
+      default: 'pending',
+      index: true,
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
+    },
+    removalReason: {
+      type: String,
+      default: '',
+    },
+    adminNote: {
+      type: String,
+      default: '',
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reviewedAt: {
+      type: Date,
+    },
+    approvalHistory: [
+      {
+        status: { type: String, required: true },
+        admin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        reason: { type: String, default: '' },
+        date: { type: Date, default: Date.now },
+      },
+    ],
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',             // Who listed this property
@@ -93,6 +126,7 @@ propertySchema.index({ owner: 1 });
 propertySchema.index({ price: 1 });
 propertySchema.index({ type: 1 });
 propertySchema.index({ bedrooms: 1 });
+propertySchema.index({ approvalStatus: 1, available: 1 });
 
 const Property = mongoose.model('Property', propertySchema);
 export default Property;

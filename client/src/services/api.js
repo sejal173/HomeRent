@@ -40,12 +40,28 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const status = error.response?.status || 'No Response (Network Error / CORS)';
+    const status = error.response?.status;
     const message = error.response?.data?.message || error.message || 'Unknown error';
     const requestUrl = error.config?.url
       ? `${error.config.baseURL || ''}${error.config.url}`
       : 'Unknown URL';
-    console.error(`[API Error] Status: ${status} | URL: ${requestUrl} | Message: ${message}`);
+    console.error(`[API Error] Status: ${status || 'No Response'} | URL: ${requestUrl} | Message: ${message}`);
+
+    // Suspension check: if user is suspended, log out, clear localStorage and redirect to login
+    if (status === 403 && error.response?.data?.isSuspended) {
+      localStorage.removeItem('homerent_user');
+      localStorage.removeItem('homerent_saved_properties');
+      window.location.href = '/login?suspended=true';
+      return Promise.reject(error);
+    }
+
+    // Admin unauthorized check: redirect to login if unauthorized to access admin endpoints
+    if ((status === 401 || status === 403) && requestUrl.includes('/admin')) {
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }
+    }
+
     return Promise.reject(error);
   }
 );

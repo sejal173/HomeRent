@@ -167,18 +167,7 @@ Query params for `/api/properties`: `keyword`, `city`, `type`, `minPrice`, `maxP
 
 ---
 
-## Screenshots
 
-| Page | Screenshot |
-|------|-----------|
-| Home | ![Home Page](./screenshots/home.png) |
-| Browse Properties | ![Properties Page](./screenshots/properties.png) |
-| Property Detail | ![Detail Page](./screenshots/detail.png) |
-| Dashboard | ![Dashboard](./screenshots/dashboard.png) |
-
-> **TODO:** Add actual screenshots to a `screenshots/` folder in the root.
-
----
 
 ## Database Indexing (Performance Notes)
 
@@ -223,3 +212,83 @@ The dataset has only 100 properties. With this small size, the response time dif
 - **Automated tests** — expand Jest/Supertest coverage and add Vitest component tests
 - **Caching** — add Redis caching for the property list endpoint to reduce DB load
 - **Pagination cursor** — replace offset pagination with cursor-based for large datasets
+
+---
+
+## Admin Portal & Moderation Architecture
+
+HomeRent includes an administrative moderation suite accessible via `/admin` for users with `role: 'admin'`.
+
+### 1. Platform Roles & Permissions
+- **Tenant (`tenant`):** Public browsing, scheduling tours (`/api/visits`), posting reviews, submitting listing safety reports (`/api/reports`). Cannot access admin portal or landlord endpoints.
+- **Landlord (`landlord`):** Create, update, toggle availability, and delete own properties. Upload ownership verification deeds (`/api/verifications/submit`). View and respond to visit inquiries. Cannot submit safety reports on listings.
+- **Admin (`admin`):** Full oversight over users, properties, safety reports, deed verifications, visit requests, reviews, and immutable audit logs. Cannot be suspended by any user or API.
+
+### 2. Property Approval Lifecycle
+```
+[ Landlord Creates Listing ]
+             │
+             ▼
+        ( Pending )  ──[ Admin Rejects (with reason) ]──► ( Rejected )
+             │                                                 │
+             │ [ Admin Approves ]                              │ [ Landlord Edits ]
+             ▼                                                 ▼
+        ( Approved ) ◄────────────────────────────────── ( Resubmitted / Pending )
+             │
+             │ [ Admin Removes (with reason) ]
+             ▼
+         ( Removed ) ──► Landlord edits strictly blocked (HTTP 403)
+```
+
+### 3. Safe First-Admin Creation Command (From Clean Machine)
+Set environment variables securely in your terminal without committing credentials:
+```bash
+# In server directory:
+$env:ADMIN_NAME="System Administrator"
+$env:ADMIN_EMAIL="<your-admin-email>"
+$env:ADMIN_PASSWORD="<choose-a-strong-12+-character-password>"
+node seed/createAdmin.js
+```
+*Note: The script enforces $\ge$ 12 character passwords, hashes with bcrypt (salt 10), and refuses to run if an administrator already exists unless `--force` is provided.*
+
+### 4. Required Environment Variables (.env)
+```env
+PORT=5000
+CLIENT_URL=http://localhost:5173
+MONGO_URI=mongodb://127.0.0.1:27017/homerent
+JWT_SECRET=your_super_secret_jwt_key_here
+JWT_EXPIRES_IN=7d
+ADMIN_EMAIL=your_admin_email@example.com
+ADMIN_PASSWORD=your_12_plus_character_password_here
+```
+
+### 5. Admin API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/admin/dashboard` | 12 core platform metrics, registration/listing trends, type breakdown, recent activity |
+| `GET` | `/api/admin/users` | Filterable, sortable, paginated user management list |
+| `GET` | `/api/admin/users/:id` | Detailed user view (password hashes strictly omitted) |
+| `PUT` | `/api/admin/users/:id/suspend` | Suspend or reactivate user accounts with mandatory reason (409 on duplicate state) |
+| `GET` | `/api/admin/properties` | Property moderation table with status tabs (All, Pending, Approved, Rejected, Rented, Reported) |
+| `GET` | `/api/admin/properties/:id` | Property detail view including approval history and admin notes |
+| `PUT` | `/api/admin/properties/:id/approval` | Transition property to approved or rejected (with reason and optional adminNote) |
+| `PUT` | `/api/admin/properties/:id/note` | Attach private guidance note to landlord (`PROPERTY_NOTE` audit action) |
+| `PUT` | `/api/admin/properties/:id/remove` | Soft-remove listing with mandatory reason (blocks future landlord edits) |
+| `GET` | `/api/admin/verifications` | Landlord ownership deed verification queue |
+| `GET` | `/api/admin/verifications/:id` | Verification submission inspection |
+| `PUT` | `/api/admin/verifications/:id` | Approve or reject deed verification (reason required on rejection) |
+| `GET` | `/api/admin/reports` | Listing safety anomaly queue |
+| `GET` | `/api/admin/reports/:id` | Report detail view with warning signals for manual review |
+| `PUT` | `/api/admin/reports/:id` | Update report status (`under_review`, `resolved`, `dismissed`) |
+| `GET` | `/api/admin/visits` | Read-only platform oversight of tenant tour requests |
+| `GET` | `/api/admin/reviews` | Review moderation queue |
+| `PUT` | `/api/admin/reviews/:id/moderate` | Flag or hide reviews with rationale (original text/rating immutable) |
+| `GET` | `/api/admin/audit-logs` | Immutable audit trail with actor, action, target, state transitions, and IP provenance |
+
+### 6. Security & Hardening Assurances
+- **Rate Limiting:** Dedicated login brute-force limiter (20 attempts per 15 min) and safety report abuse limiter (15 requests per 15 min), bypassed during testing.
+- **Document Protection:** Deed verification documents are stored outside the public directory (`server/uploads/verifications`) with cryptographically randomized filenames; accessed strictly via authenticated streaming endpoint guarded by owner/admin checks and path-traversal sanitization.
+- **Mass-Assignment Guard:** Field allowlists on `updateProperty` and `createProperty` reject ownership or administrative status tampering.
+- **Account Protection:** Suspended users are denied authentication at login and immediately blocked by `protect` middleware on active JWT sessions with automatic client-side session eviction.
+

@@ -29,3 +29,5 @@ export function PropertyCardSkeleton() {
     </div>
   );
 }
+
+export default LoadingSpinner;

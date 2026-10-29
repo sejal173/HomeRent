@@ -13,8 +13,23 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect destination after successful login
-  const from = location.state?.from?.pathname || '/dashboard';
+  // Query params for suspension reason or redirect
+  const searchParams = new URLSearchParams(location.search);
+  const isSuspendedRedirect = searchParams.get('suspended') === 'true';
+
+  // Rule 3.1: redirectParam accepts only internal paths (starts with a single "/", not "//", no protocol, no backslash)
+  const isValidInternalPath = (path) => {
+    if (!path || typeof path !== 'string') return false;
+    if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\') || path.includes(':')) {
+      return false;
+    }
+    return true;
+  };
+
+  const rawRedirect = searchParams.get('redirect');
+  const validRedirect = isValidInternalPath(rawRedirect) ? rawRedirect : null;
+  const stateFrom = isValidInternalPath(location.state?.from?.pathname) ? location.state.from.pathname : null;
+  const from = validRedirect || stateFrom || '/dashboard';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,8 +42,9 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      const loggedUser = await login(email, password);
+      const destination = loggedUser?.role === 'admin' && from === '/dashboard' ? '/admin' : from;
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
     } finally {
@@ -52,6 +68,17 @@ export default function LoginPage() {
             Access your saved listings, inquiries, and rental dashboard
           </p>
         </div>
+
+        {/* Rule 3.2: Fixed suspension message, reason only from router state or API response */}
+        {isSuspendedRedirect && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-1">
+            <p className="font-bold">Account Suspended</p>
+            <p className="text-amber-700 leading-relaxed">
+              Your account has been administratively suspended.
+              {location.state?.suspensionReason ? ` Reason: ${location.state.suspensionReason}` : ' Please contact support if you believe this is in error.'}
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">

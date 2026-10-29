@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         isAuthenticated: !!user,
         isLandlord: user?.role?.toLowerCase() === 'landlord',
+        isAdmin: user?.role?.toLowerCase() === 'admin',
       }}
     >
       {children}

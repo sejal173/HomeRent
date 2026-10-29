@@ -27,8 +27,21 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['tenant', 'landlord'],  // Only these two values are allowed
+      enum: ['tenant', 'landlord', 'admin'],
       default: 'tenant',
+    },
+    isSuspended: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    suspensionReason: {
+      type: String,
+      default: '',
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
     phone: {
       type: String,

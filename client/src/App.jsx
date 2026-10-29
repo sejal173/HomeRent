@@ -1,6 +1,6 @@
 // client/src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SavedProvider } from './context/SavedContext';
 
@@ -8,8 +8,10 @@ import { SavedProvider } from './context/SavedContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/admin/AdminRoute';
+import AdminLayout from './components/admin/AdminLayout';
 
-// Pages
+// Public & User Pages
 import HomePage from './pages/HomePage';
 import PropertiesPage from './pages/PropertiesPage';
 import PropertyDetailPage from './pages/PropertyDetailPage';
@@ -18,6 +20,16 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import MyPropertiesPage from './pages/MyPropertiesPage';
 import AddEditPropertyPage from './pages/AddEditPropertyPage';
+
+// Admin Pages
+import AdminOverviewPage from './pages/admin/OverviewPage';
+import AdminUsersPage from './pages/admin/UsersPage';
+import AdminPropertiesPage from './pages/admin/PropertiesPage';
+import AdminVerificationsPage from './pages/admin/VerificationsPage';
+import AdminReportsPage from './pages/admin/ReportsPage';
+import AdminVisitRequestsPage from './pages/admin/VisitRequestsPage';
+import AdminReviewsPage from './pages/admin/ReviewsPage';
+import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
 
 // Simple 404 page
 function NotFound() {
@@ -40,63 +52,91 @@ function NotFound() {
   );
 }
 
+function AppContent() {
+  const location = useLocation();
+  const isAdminPath = location.pathname.startsWith('/admin');
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#FBFBFA] text-[#0F172A] selection:bg-blue-100 selection:text-blue-900 font-sans">
+      {!isAdminPath && <Navbar />}
+      <div className="flex-1">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/properties" element={<PropertiesPage />} />
+          <Route path="/properties/:id" element={<PropertyDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Protected Routes (Logged-in users) */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-listings"
+            element={
+              <ProtectedRoute>
+                <MyPropertiesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Landlord-Only Routes */}
+          <Route
+            path="/add-property"
+            element={
+              <ProtectedRoute landlordOnly={true}>
+                <AddEditPropertyPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/edit-property/:id"
+            element={
+              <ProtectedRoute landlordOnly={true}>
+                <AddEditPropertyPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Portal Protected Routes */}
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            }
+          >
+            <Route index element={<AdminOverviewPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="properties" element={<AdminPropertiesPage />} />
+            <Route path="verifications" element={<AdminVerificationsPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="visits" element={<AdminVisitRequestsPage />} />
+            <Route path="reviews" element={<AdminReviewsPage />} />
+            <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+      {!isAdminPath && <Footer />}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <SavedProvider>
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col bg-[#FBFBFA] text-[#0F172A] selection:bg-blue-100 selection:text-blue-900 font-sans">
-            <Navbar />
-            <div className="flex-1">
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<HomePage />} />
-                <Route path="/properties" element={<PropertiesPage />} />
-                <Route path="/properties/:id" element={<PropertyDetailPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-
-                {/* Protected Routes (Logged-in users) */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-listings"
-                  element={
-                    <ProtectedRoute>
-                      <MyPropertiesPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Landlord-Only Routes */}
-                <Route
-                  path="/add-property"
-                  element={
-                    <ProtectedRoute landlordOnly={true}>
-                      <AddEditPropertyPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/edit-property/:id"
-                  element={
-                    <ProtectedRoute landlordOnly={true}>
-                      <AddEditPropertyPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-            <Footer />
-          </div>
+          <AppContent />
         </BrowserRouter>
       </SavedProvider>
     </AuthProvider>

@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   PlusCircle, Edit3, Trash2, CheckCircle2, 
-  AlertCircle, Eye 
+  AlertCircle, Eye, ShieldCheck, Info, X, Loader2
 } from 'lucide-react';
 import { PropertyService } from '../services/api';
+import AdminApi from '../services/adminApi';
 import { useAuth } from '../context/AuthContext';
 import EmptyState from '../components/EmptyState';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -19,6 +20,12 @@ export default function MyPropertiesPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+
+  // Verification modal state
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [propertyToVerify, setPropertyToVerify] = useState(null);
+  const [verifyFiles, setVerifyFiles] = useState([]);
+  const [verifyUploading, setVerifyUploading] = useState(false);
 
   const loadUserProperties = async () => {
     setLoading(true);
@@ -146,8 +153,8 @@ export default function MyPropertiesPage() {
                   <th className="py-4 px-6">Property</th>
                   <th className="py-4 px-6">Location</th>
                   <th className="py-4 px-6">Monthly Rent</th>
-                  <th className="py-4 px-6">Configuration</th>
-                  <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6">Approval Status</th>
+                  <th className="py-4 px-6">Availability</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -179,6 +186,36 @@ export default function MyPropertiesPage() {
                             <span className="text-xs text-slate-400 block mt-0.5">
                               {propType} • Added {prop.createdAt ? new Date(prop.createdAt).toLocaleDateString() : 'Recently'}
                             </span>
+
+                            {/* Informational Note from Admin */}
+                            {prop.adminNote && (
+                              <div className="mt-2 text-xs p-2.5 bg-blue-50/80 border border-blue-200 text-blue-900 rounded-xl flex items-start gap-2 max-w-md">
+                                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold">Note from Admin: </span>
+                                  <span>{prop.adminNote}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Rejection Reason Banner */}
+                            {prop.approvalStatus === 'rejected' && (
+                              <div className="mt-2 text-xs p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 max-w-md">
+                                <div className="flex items-start gap-2">
+                                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <span className="font-bold">Listing Rejected: </span>
+                                    <span>{prop.rejectionReason || 'Please review and update details.'}</span>
+                                  </div>
+                                </div>
+                                <Link
+                                  to={`/edit-property/${prop._id}`}
+                                  className="px-2.5 py-1 bg-rose-600 text-white rounded-lg font-semibold text-[11px] hover:bg-rose-700 shrink-0 text-center"
+                                >
+                                  Edit listing to resubmit
+                                </Link>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -197,13 +234,50 @@ export default function MyPropertiesPage() {
                           ₹{rent.toLocaleString('en-IN')}
                           <span className="text-[11px] text-slate-400 font-normal"> / mo</span>
                         </div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {prop.bedrooms || 1} Beds · {furnishing}
+                        </div>
                       </td>
 
-                      {/* Configuration */}
+                      {/* Approval & Verification Status Badges (Rule 4.2) */}
                       <td className="py-4 px-6">
-                        <div className="text-xs text-slate-600 space-y-0.5">
-                          <div>{prop.bedrooms || 1} Beds, {prop.bathrooms || 1} Baths</div>
-                          <div className="text-slate-400">{furnishing}</div>
+                        <div className="flex flex-col gap-1.5 items-start">
+                          {(() => {
+                            const status = prop.approvalStatus || 'approved';
+                            let badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                            let label = 'Pending Review';
+
+                            if (status === 'approved') {
+                              badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                              label = 'Approved';
+                            } else if (status === 'rejected') {
+                              badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                              label = 'Rejected';
+                            } else if (status === 'removed') {
+                              badgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
+                              label = 'Removed';
+                            }
+
+                            return (
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badgeClass}`}>
+                                <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-current opacity-70" />
+                                {label}
+                              </span>
+                            );
+                          })()}
+
+                          {/* Deed Verification Badge (Separate from listing approval) */}
+                          {prop.isVerified ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              <span className="w-1.5 h-1.5 rounded-full mr-1 bg-blue-500" />
+                              Deed Verified
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-50 text-slate-500 border border-slate-200">
+                              <span className="w-1.5 h-1.5 rounded-full mr-1 bg-slate-400" />
+                              Unverified Deed
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -225,7 +299,19 @@ export default function MyPropertiesPage() {
 
                       {/* Actions */}
                       <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setPropertyToVerify(prop);
+                              setVerifyFiles([]);
+                              setVerifyModalOpen(true);
+                            }}
+                            title="Verify Ownership Deed"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Verify</span>
+                          </button>
                           <Link
                             to={`/properties/${prop._id}`}
                             title="View public listing"
@@ -286,6 +372,93 @@ export default function MyPropertiesPage() {
                 Confirm Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* VERIFY PROPERTY MODAL */}
+      {verifyModalOpen && propertyToVerify && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Verify Property</h3>
+                  <p className="text-xs text-slate-400">Ownership Deed or Tax Receipt</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setVerifyModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Upload municipal deed, purchase contract, or property tax receipt for{' '}
+              <span className="font-semibold text-slate-800">"{propertyToVerify.title}"</span>. Once verified by an administrator, your listing receives a Deed-Verified trust badge.
+            </p>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (verifyFiles.length === 0) {
+                  alert('Please select at least one document to upload.');
+                  return;
+                }
+                try {
+                  setVerifyUploading(true);
+                  const formData = new FormData();
+                  formData.append('propertyId', propertyToVerify._id);
+                  for (let i = 0; i < verifyFiles.length; i++) {
+                    formData.append('documents', verifyFiles[i]);
+                  }
+                  await AdminApi.submitPropertyVerification(formData);
+                  showToast('Verification documents submitted successfully for review.');
+                  setVerifyModalOpen(false);
+                } catch (err) {
+                  alert(err.response?.data?.message || 'Failed to submit verification');
+                } finally {
+                  setVerifyUploading(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Select Documents (PDF, JPG, PNG up to 5MB)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => setVerifyFiles(Array.from(e.target.files || []))}
+                  className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setVerifyModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyUploading}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50"
+                >
+                  {verifyUploading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Submit for Review</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
