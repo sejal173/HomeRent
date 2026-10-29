@@ -10,6 +10,7 @@ import PropertyReport from '../models/PropertyReport.js';
 import VerificationSubmission from '../models/VerificationSubmission.js';
 import VisitRequest from '../models/VisitRequest.js';
 import Review from '../models/Review.js';
+import { sendPropertyApproved, sendPropertyRejected, sendAccountSuspended, sendAccountReactivated } from '../utils/emailService.js';
 
 // Helper: record action to AuditLog
 const logAudit = async ({ adminId, action, targetType, targetId, previousStatus = '', newStatus = '', reason = '', details = {}, ip = '' }) => {
@@ -246,6 +247,8 @@ export const toggleUserSuspension = async (req, res) => {
   targetUser.suspensionReason = suspend ? reason.trim() : (reason ? reason.trim() : '');
   await targetUser.save();
 
+  (suspend ? sendAccountSuspended(targetUser.email, targetUser.name, targetUser.suspensionReason) : sendAccountReactivated(targetUser.email, targetUser.name));
+
   // Audit log
   await logAudit({
     adminId: req.user._id,
@@ -384,6 +387,8 @@ export const updatePropertyApproval = async (req, res) => {
   });
 
   await property.save();
+
+  (status === 'approved' ? sendPropertyApproved(property.owner, property.title, property._id) : sendPropertyRejected(property.owner, property.title, reason.trim()));
 
   await logAudit({
     adminId: req.user._id,

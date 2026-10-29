@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, ShieldCheck, Clock, Users, ArrowRight } from 'lucide-react';
+import { Sparkles, ShieldCheck, Clock, Users, ArrowRight, Building2, Home, BedDouble, ChevronRight } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import PropertyCard from '../components/PropertyCard';
 import { PropertyService } from '../services/api';
@@ -86,7 +86,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 2. FEATURED PROPERTIES GRID */}
+      {/* 2. BROWSE BY PROPERTY TYPE */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="text-lg font-bold text-slate-900 mb-4">Browse by Type</h2>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {[
+            { label: 'Apartment', icon: Building2 },
+            { label: 'Villa',     icon: Home       },
+            { label: 'House',     icon: Home       },
+            { label: 'Studio',    icon: BedDouble  },
+            { label: 'PG',        icon: Users      },
+          ].map(({ label, icon: Icon }) => (
+            <Link
+              key={label}
+              to={`/properties?type=${encodeURIComponent(label)}`}
+              className="flex flex-col items-center justify-center gap-2 py-5 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition text-center"
+            >
+              <Icon className="w-7 h-7 text-blue-600" />
+              <span className="text-sm font-semibold text-slate-700">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 3. FEATURED PROPERTIES GRID */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
           <div>
@@ -131,7 +154,59 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* 3. CALL TO ACTION FOR OWNERS */}
+      {/* 4. HOW IT WORKS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-slate-900">How It Works</h2>
+          <p className="text-sm text-slate-500 mt-1 mb-8">Finding your rental home is simple and free</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+          {/* Step 1 */}
+          <div className="text-center bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">
+              1
+            </div>
+            <p className="text-base font-bold text-slate-900 mb-2">Search &amp; Filter</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Browse verified listings by city, budget and property type
+            </p>
+          </div>
+
+          {/* Arrow (desktop only) */}
+          <div className="hidden md:flex items-center justify-center">
+            <ChevronRight className="w-8 h-8 text-slate-300" />
+          </div>
+
+          {/* Step 2 */}
+          <div className="text-center bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">
+              2
+            </div>
+            <p className="text-base font-bold text-slate-900 mb-2">Schedule a Visit</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Request a visit directly from the property page
+            </p>
+          </div>
+
+          {/* Arrow (desktop only) */}
+          <div className="hidden md:flex items-center justify-center">
+            <ChevronRight className="w-8 h-8 text-slate-300" />
+          </div>
+
+          {/* Step 3 */}
+          <div className="text-center bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold mx-auto mb-4">
+              3
+            </div>
+            <p className="text-base font-bold text-slate-900 mb-2">Move In</p>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Connect with the owner and move into your new home
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. CALL TO ACTION FOR OWNERS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 p-8 sm:p-12 lg:p-16 text-white overflow-hidden shadow-xl">
           <div className="relative z-10 max-w-2xl">

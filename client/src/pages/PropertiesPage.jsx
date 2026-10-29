@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, RotateCcw, SlidersHorizontal, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, Filter, RotateCcw, SlidersHorizontal, ChevronLeft, ChevronRight, X, Map, LayoutGrid } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import { PropertyCardSkeleton } from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import PropertyMap from '../components/PropertyMap';
 import { PropertyService } from '../services/api';
 
 const CITIES = ['All Cities', 'Bengaluru', 'Mumbai', 'Delhi NCR', 'Pune', 'Hyderabad', 'Chennai'];
@@ -32,6 +33,7 @@ export default function PropertiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('list');
 
   // Sync budget shortcut from hero search bar if passed
   useEffect(() => {
@@ -352,25 +354,54 @@ export default function PropertiesPage() {
               )}
             </div>
 
-            {/* Sort Selector */}
-            <div className="flex items-center gap-2">
-              <label htmlFor="sort-listings" className="text-xs font-semibold text-slate-500 whitespace-nowrap">
-                Sort By:
-              </label>
-              <select
-                id="sort-listings"
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="newest">Newest Listed</option>
-                <option value="rent_low_to_high">Rent: Low to High</option>
-                <option value="rent_high_to_low">Rent: High to Low</option>
-                <option value="rating">Top Rated</option>
-              </select>
+            {/* View Mode Toggle & Sort Selector */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  List View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('map')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === 'map'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Map className="w-3.5 h-3.5" />
+                  Map View
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label htmlFor="sort-listings" className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+                  Sort By:
+                </label>
+                <select
+                  id="sort-listings"
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="newest">Newest Listed</option>
+                  <option value="rent_low_to_high">Rent: Low to High</option>
+                  <option value="rent_high_to_low">Rent: High to Low</option>
+                  <option value="rating">Top Rated</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -428,8 +459,10 @@ export default function PropertiesPage() {
             </div>
           )}
 
-          {/* PROPERTIES GRID */}
-          {loading ? (
+          {/* PROPERTIES GRID / MAP VIEW */}
+          {viewMode === 'map' ? (
+            <PropertyMap properties={properties} />
+          ) : loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
                 <PropertyCardSkeleton key={n} />

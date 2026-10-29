@@ -4,6 +4,7 @@
 import mongoose from 'mongoose';
 import VisitRequest from '../models/VisitRequest.js';
 import Property from '../models/Property.js';
+import { sendVisitConfirmed } from '../utils/emailService.js';
 
 // ─────────────────────────────────────────────
 // @route   POST /api/visits
@@ -121,6 +122,8 @@ export const updateVisitStatus = async (req, res) => {
 
   visit.status = status;
   await visit.save();
+
+  if (status === 'accepted') sendVisitConfirmed(visit.tenant, visit.tenantName, visit.property, visit.requestedDate, visit.requestedTime, req.user?.phone);
 
   res.json({ message: `Visit request marked as ${status}`, visit });
 };
